@@ -14,7 +14,7 @@ import urllib
 import pandas as pd
 
 os.getcwd()
-
+os.chdir("/Users/data_analysis/Desktop/Study/Hands_on_ml2")
 download_root = "https://raw.githubusercontent.com/ageron/handson-ml2/master/"
 HOUSING_PATH = os.path.join("datasets","housing")
 HOUSING_URL = download_root +"datasets/housing/housing.tgz"
@@ -39,7 +39,7 @@ import pandas as pd
   #  return pd.read_csv(csv_path)
 
 #데이터 구조 훑어보기
-housing = pd.read_csv("housing.csv")
+housing = pd.read_csv("datasets/housing.csv")
 
 housing.head()
 
@@ -244,3 +244,38 @@ from sklearn.impute import SimpleImputer
 imputer = SimpleImputer(strategy = "median")
 
 #수치형 특성에서만 계산될수 있다 텍스트 특성 ocean_proximity 제외
+
+# 텍스트 특성 제외 복사 
+
+housing_num = housing.drop("ocean_proximity",axis = 1)
+
+imputer.fit(housing_num)
+
+#중간값을 계싼해서 저장 
+
+print(imputer.statistics_)
+
+x = imputer.transform(housing_num)
+
+print(x)
+#변형된 특성들이 들어 있는 평범한 numpy 배열 판다스로 되돌릴수도 있음
+ 
+ #텍스트와 범주형 특성다루기 
+housing_cat = housing[["ocean_proximity"]]
+
+print(housing_cat.head(10))
+
+
+#숫자로 변형 
+
+from sklearn.preprocessing import OrdinalEncoder
+
+ordinal_encoder = OrdinalEncoder()
+
+housing_cat_encoded = ordinal_encoder.fit_transform(housing_cat)
+
+print(housing_cat_encoded[:10])
+
+#categories 인스턴스 변수를 사용해 카테고리 목록을 얻을수 있다 
+
+ordinal_encoder.categories
