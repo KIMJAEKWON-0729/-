@@ -279,3 +279,127 @@ print(housing_cat_encoded[:10])
 #categories 인스턴스 변수를 사용해 카테고리 목록을 얻을수 있다 
 
 ordinal_encoder.categories
+
+#더미로 인코딩을 하는게 낫다 
+
+from sklearn.preprocessing import OneHotEncoder
+
+cat_encoder = OneHotEncoder()
+housing_cat_1hot = cat_encoder.fit_transform(housing_cat)
+
+print(housing_cat_1hot)
+
+#넘파이 배열이 아니라 희소행렬 수천개의 카테고리가 있는 범주형 특성일경우매우 효율적 
+
+print(housing_cat_1hot.toarray())
+#카테고리 5개 
+
+#나만의 변환기 만들기 
+from sklearn.base import BaseEstimator, TransformerMixin
+
+rooms_ix, bedrooms_ix, population_ix, households_ix = 3,4,5,6
+
+class CombinedAttributesAdder(BaseEstimator,TransformerMixin):
+    def __init__(self,add_bedrooms_per_room = True):
+        self.add_bedrooms_per_room = add_bedrooms_per_room
+    def fit(self, X,y=None):
+        return self
+    def transform(self,X):
+        rooms_per_household = X[:, rooms_ix]/X[:, households_ix]
+        population_per_household = X[:, population_ix]/ X[:,households_ix]
+        if self.add_bedrooms_per_room:
+            bedrooms_per_room = X[:,bedrooms_ix]/ X[:,rooms_ix]
+            return np.c_[X,rooms_per_household,population_per_household,
+            bedrooms_per_room]
+        else :
+            return np.c_[X,rooms_per_household,population_per_household]
+
+attr_adder = CombinedAttributesAdder(add_bedrooms_per_room=False)
+housing_extra_attribs = attr_adder.transform(housing.values)
+
+#특성 스케일링 
+
+#데이터에 적용할 가장 중요한 변환중 하나가 특성스케일링 
+
+#머신러닝 알고리즘은 입력 숫자 특성들의 스케일이 많이 다르면 잘 작동하지 않는다 
+
+# 모든 특성의 범위를 같도록 만들어주는 방법으로 min-man 스케일릴과 표준화 가 널리 사용된다 
+
+#변환 파이프 라인 
+#변환이 많아질때 사용
+
+#Pipeline은 단계를 나타내는 이름 과 추정기를 입력받는다
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+num_pipeline = Pipeline([
+  ('imputer', SimpleImputer(strategy= "median")),
+  ('attribs_adder', CombinedAttributesAdder()),
+  ('std_scaler', StandardScaler()),  
+])
+#끝에도 쉼표 
+
+housing_num_tr  = num_pipeline.fit_transform(housing_num)
+
+#
+from sklearn.compose import ColumnTransformer
+
+num_attribs = list(housing_num)
+
+cat_attribs = ['ocean_proximity']
+
+full_pipeline = ColumnTransformer([
+    ("num", num_pipeline, num_attribs),
+    ("cat", OneHotEncoder(),cat_attribs),
+
+])
+
+housing_prepared = full_pipeline.fit_transform(housing)
+
+print(housing_prepared)
+
+#모델 선택과 훈련
+#훈련 세트에서훈련하고 평가하기 
+
+from sklearn.linear_model import LinearRegression
+
+lin_reg = LinearRegression()
+
+lin_reg.fit(housing_prepared,housing_labels)
+#x값 , y값
+
+some_data = housing.iloc[:5]
+print(some_data)
+
+some_labels = housing_labels.iloc[:5]
+print(some_labels)
+
+some_data_prepared = full_pipeline.transform(some_data)
+print("예측:",lin_reg.predict(some_data_prepared))
+
+print("레이블:",list(some_labels))
+
+#벗어난 모습 
+#MSE함수를 이용해 전체 훈련 세트에 대한 이 회귀 모델의 RMSE를 측정 
+
+from sklearn.metrics import mean_squared_error
+housing_predictions = lin_reg.predict(housing_prepared)
+
+lin_mse = mean_squared_error(housing_labels,housing_predictions)
+
+lin_rmse = np.sqrt(lin_mse)
+
+print(lin_rmse) #68626 
+#없는것 보다는 낫지만 확실히좋은 점수는 아니다  대부분 중간 주택 가격은 120000에서 265000사이  이는 모델이 훈련 데이터에 과소적합된 상태 
+#과소적합을 해결하는 주요 방법은 더 강력한 모델을 선택
+# 훈련 알고리즘에 더 좋은 특성을 주입
+# 모델의 규제를 감소시키는것 
+
+#먼저 더 복잡한 모델 사용해 보기 
+
+from sklearn.tree import DecisionTreeRegressor
+
+tree_reg = DecisionTreeRegressor()
+
+tree_reg.fit(housing_prepared,housing_labels)
