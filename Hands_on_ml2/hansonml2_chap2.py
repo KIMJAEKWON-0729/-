@@ -403,3 +403,105 @@ from sklearn.tree import DecisionTreeRegressor
 tree_reg = DecisionTreeRegressor()
 
 tree_reg.fit(housing_prepared,housing_labels)
+
+housing_predictions = tree_reg.predict(housing_prepared)
+
+tree_mse = mean_squared_error(housing_labels,housing_predictions)
+
+tree_rmse  = np.sqrt(tree_mse)
+print(tree_rmse)
+
+#rmse 가 0 과대적합된것으로 보인다 
+
+#K-fold cross-vallidation
+#훈련세트를 10개의 서브셋으로 무작위로 분할 그다음 결정트리 모델을 10번 훈련하고 평가 
+
+from sklearn.model_selection import cross_val_score
+
+scores = cross_val_score(tree_reg,housing_prepared,housing_labels, scoring="neg_mean_squared_error",cv=10)
+#scoring 매개 변수에 비용함수가 아니라 효용함수를 기대 그래서 반댓값을 계산하는 neg ~
+tree_rmse_scores = np.sqrt(-scores)
+
+#결과 확인 
+
+def display_scores(scores):
+    print("점수:",scores)
+    print("평균",scores.mean())
+    print("표준편차",scores.std())
+
+display_scores(tree_rmse_scores)
+#교차 검증으로 모델의 성능을 추정하는것 뿐만 아니라 이 추정이 얼마나 정확한지 측정할수 있다  
+#평균 71031.11567721912
+#표준편차 2842.614812532021
+#결정트리 점수가 대략 평균 71407에서 2439사이 
+#모델을 여러번 훈련시켜야 해서 비용이 비싸기에 언제나 쓸수 있는 것은 아니다 
+
+
+#선형회귀모델 점수 비교 ----------------------------------------------------------------------------
+
+lin_scores = cross_val_score(lin_reg,housing_prepared,housing_labels,scoring = "neg_mean_squared_error",cv=10)
+
+lin_rmse_scores  = np.sqrt(-lin_scores)
+
+display_scores(lin_rmse_scores)
+
+
+#앙상블 , RandomForestRegressor--------------------------------------
+
+from sklearn.ensemble import RandomForestRegressor
+
+forest_reg = RandomForestRegressor()
+
+forest_reg.fit(housing_prepared,housing_labels)
+
+housing_predictions = forest_reg.predict(housing_prepared)
+
+forset_mse = mean_squared_error(housing_labels,housing_predictions)
+
+forest_rmse = np.sqrt(forset_mse)
+print(forest_rmse)
+
+forest_scores = cross_val_score(forest_reg,housing_prepared,housing_labels,scoring = "neg_mean_squared_error",cv=10)
+
+forest_rmse_scores  = np.sqrt(-forest_scores)
+
+display_scores(forest_rmse_scores)
+
+#실험한 모델 저장 
+
+import joblib
+#joblib.dump(my_model,"my_model.pkl")
+#load my_model_loaded = joblib.load("my_model.pkl")
+
+#그리드탐색 GridSearchCV ------------------------------------------------------------
+#가능성 있는 모델 추렸다고 가정 -> 모델을 세부튜닝
+#가장 단순한 방법은 만족할 만한 하이퍼 파라미터 조합을 찾을 때까지 수동으로 하이퍼파라미터를 조정하는것 이는 매우 지루한 작업이며 많은 경우를 탐색하기에는 시간이 부족 할수도 있다 
+#GridSearchCV는 탐색하고자 하는 하이퍼파라미터와 시도해볼 값을 지정하기만 하면 된다 
+from sklearn.model_selection import GridSearchCV
+
+#RandomForestRegressor 에 대한 최적의 하이퍼 파라미터조합을 탐색
+param_grid = [
+    {'n_estimators': [3,10,30],'max_features':[2,4,6,8]},
+    {'bootstrap':[False],'n_estimators':[3,10],'max_features':[2,3,4]},
+]
+grid_search = GridSearchCV(forest_reg,param_grid,cv=5,
+scoring="neg_mean_squared_error",return_train_score=True)
+
+grid_search.fit(housing_prepared,housing_labels)
+
+#첫번째 dict 에 있는 n_estimator와 max_features 하이퍼 파라미터의 조합인 3*4 =12개를 평가 그다음 두번째 dict에 있는 하이퍼 파라미터 조합인 2*3=6
+#6개를 시도 총 12+6= 18개의 조합을 탐색하고 5번 훈련 전체훈련 횟수는 90 
+
+print("best_paranms",grid_search.best_params_)
+
+#최적의 추정기에 직접 접근
+
+print("best_estimator",grid_search.best_estimator_)
+#평가점수 확인 
+
+cvres = grid_search.cv_results_
+
+for mean_score, params in zip(cvres["mean_test_score"],cvres["params"]):
+    print(np.sqrt(-mean_score),params)
+
+#max_feature가 하이퍼 파라미터 8 n_estimatr 30  rmse : 50099
