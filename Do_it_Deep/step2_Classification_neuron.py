@@ -96,3 +96,5 @@ neuron.fit(x_train, y_train)
 
 print(np.mean(neuron.predict(x_test) == y_test))
 #0.8245614035087719
+
+#내일도하기
